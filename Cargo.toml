@@ -1,0 +1,15 @@
+[package]
+name    = "multipurpose-bot"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bot"
+path = "src/main.rs"
+
+[dependencies]
+tgbotrs = { version = "0.1.4" }
+tokio   = { version = "1",    features = ["full"] }
+dotenvy = "0.15"
+chrono  = { version = "0.4",  features = [] }
+rand    = "0.8"
