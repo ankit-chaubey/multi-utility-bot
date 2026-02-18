@@ -1,6 +1,6 @@
 use tgbotrs::{InlineKeyboardButton, InlineKeyboardMarkup, ReplyMarkup};
 
-/// Make a single callback button
+/// Callback button
 pub fn btn(text: &str, data: &str) -> InlineKeyboardButton {
     InlineKeyboardButton {
         text: text.to_string(),
@@ -9,7 +9,7 @@ pub fn btn(text: &str, data: &str) -> InlineKeyboardButton {
     }
 }
 
-/// Make a URL button
+/// URL button
 pub fn url_btn(text: &str, url: &str) -> InlineKeyboardButton {
     InlineKeyboardButton {
         text: text.to_string(),
@@ -18,12 +18,12 @@ pub fn url_btn(text: &str, url: &str) -> InlineKeyboardButton {
     }
 }
 
-/// Build an inline keyboard from rows of buttons
+/// Multi-row inline keyboard
 pub fn kb(rows: Vec<Vec<InlineKeyboardButton>>) -> ReplyMarkup {
     ReplyMarkup::InlineKeyboard(InlineKeyboardMarkup { inline_keyboard: rows })
 }
 
-/// One-liner for a single row of buttons
+/// Single-row inline keyboard
 pub fn row(buttons: Vec<InlineKeyboardButton>) -> ReplyMarkup {
     kb(vec![buttons])
 }

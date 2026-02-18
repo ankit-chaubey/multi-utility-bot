@@ -16,16 +16,20 @@ pub async fn cmd_save(bot: &Bot, msg: &Message, args: &str, state: &SharedState)
             ).await;
         }
         _ => {
-            let _ = bot.send_message(chat_id, "Usage: /save <name> <content>", None).await;
+            let _ = bot.send_message(
+                chat_id,
+                "Usage: `/save <name> <content>`\nExample: `/save rules No spam!`",
+                Some(SendMessageParams::new().parse_mode("Markdown")),
+            ).await;
         }
     }
 }
 
 pub async fn cmd_get(bot: &Bot, msg: &Message, args: &str, state: &SharedState) {
     let chat_id = msg.chat.id;
-    let name = args.trim().to_lowercase();
+    let name    = args.trim().to_lowercase();
     if name.is_empty() {
-        let _ = bot.send_message(chat_id, "Usage: /get <name>", None).await;
+        let _ = bot.send_message(chat_id, "Usage: `/get <name>`", Some(SendMessageParams::new().parse_mode("Markdown"))).await;
         return;
     }
     let st = state.lock().await;
@@ -33,40 +37,49 @@ pub async fn cmd_get(bot: &Bot, msg: &Message, args: &str, state: &SharedState) 
         Some(content) => {
             let _ = bot.send_message(
                 chat_id,
-                format!("📝 *{name}:*\n\n{content}"),
-                Some(SendMessageParams::new().parse_mode("Markdown")),
+                format!("📝 <b>{name}:</b>\n\n{content}"),
+                Some(SendMessageParams::new().parse_mode("HTML")),
             ).await;
         }
         None => {
-            let _ = bot.send_message(chat_id, format!("❌ No note found with name `{name}`."), Some(SendMessageParams::new().parse_mode("Markdown"))).await;
+            let _ = bot.send_message(
+                chat_id,
+                format!("❌ No note found with name `{name}`.\nUse /notes to list all notes."),
+                Some(SendMessageParams::new().parse_mode("Markdown")),
+            ).await;
         }
     }
 }
 
 pub async fn cmd_notes(bot: &Bot, msg: &Message, state: &SharedState) {
     let chat_id = msg.chat.id;
-    let st = state.lock().await;
-    let notes: Vec<String> = st.notes.keys()
+    let st      = state.lock().await;
+    let mut notes: Vec<String> = st.notes.keys()
         .filter(|(cid, _)| *cid == chat_id)
-        .map(|(_, name)| format!("• `{name}`"))
+        .map(|(_, name)| format!("• <code>{name}</code>"))
         .collect();
+    notes.sort();
     if notes.is_empty() {
-        let _ = bot.send_message(chat_id, "📝 No notes saved in this chat. Use /save <name> <content> to add one.", None).await;
+        let _ = bot.send_message(
+            chat_id,
+            "📝 No notes saved in this chat.\nUse <code>/save &lt;name&gt; &lt;content&gt;</code> to add one.",
+            Some(SendMessageParams::new().parse_mode("HTML")),
+        ).await;
     } else {
         let list = notes.join("\n");
         let _ = bot.send_message(
             chat_id,
-            format!("📝 *Notes in this chat:*\n\n{list}\n\nUse /get <name> to retrieve one."),
-            Some(SendMessageParams::new().parse_mode("Markdown")),
+            format!("📝 <b>Notes in this chat:</b>\n\n{list}\n\nUse <code>/get &lt;name&gt;</code> to retrieve one."),
+            Some(SendMessageParams::new().parse_mode("HTML")),
         ).await;
     }
 }
 
 pub async fn cmd_delnote(bot: &Bot, msg: &Message, args: &str, state: &SharedState) {
     let chat_id = msg.chat.id;
-    let name = args.trim().to_lowercase();
+    let name    = args.trim().to_lowercase();
     if name.is_empty() {
-        let _ = bot.send_message(chat_id, "Usage: /delnote <name>", None).await;
+        let _ = bot.send_message(chat_id, "Usage: `/delnote <name>`", Some(SendMessageParams::new().parse_mode("Markdown"))).await;
         return;
     }
     let removed = state.lock().await.notes.remove(&(chat_id, name.clone()));
@@ -77,6 +90,10 @@ pub async fn cmd_delnote(bot: &Bot, msg: &Message, args: &str, state: &SharedSta
             Some(SendMessageParams::new().parse_mode("Markdown")),
         ).await;
     } else {
-        let _ = bot.send_message(chat_id, format!("❌ No note found with name `{name}`."), Some(SendMessageParams::new().parse_mode("Markdown"))).await;
+        let _ = bot.send_message(
+            chat_id,
+            format!("❌ No note found with name `{name}`."),
+            Some(SendMessageParams::new().parse_mode("Markdown")),
+        ).await;
     }
 }

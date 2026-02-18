@@ -2,15 +2,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-// ── Shared mutable state ──────────────────────────────────────────────────────
-
 #[derive(Debug, Default)]
 pub struct BotState {
-    /// (chat_id, user_id) → list of warning reasons
+    /// (chat_id, user_id) → warning reasons
     pub warnings: HashMap<(i64, i64), Vec<String>>,
-    /// (chat_id, note_name) → note content
+    /// (chat_id, note_name) → content
     pub notes: HashMap<(i64, String), String>,
-    /// chat_id → active number-guessing game
+    /// chat_id → active number game
     pub games: HashMap<i64, NumberGame>,
 }
 

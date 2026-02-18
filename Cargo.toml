@@ -1,15 +1,37 @@
 [package]
-name    = "multipurpose-bot"
-version = "0.1.0"
-edition = "2021"
+name        = "multipurpose-bot"
+version     = "0.2.0"
+edition     = "2021"
+description = "A feature-rich multi-purpose Telegram bot powered by tgbotrs"
+authors     = ["Ankit Chaubey"]
+license     = "MIT"
+repository  = "https://github.com/ankit-chaubey/tgbotrs"
+homepage    = "https://crates.io/crates/tgbotrs"
+keywords    = ["telegram", "bot", "tgbotrs", "async", "multipurpose"]
+categories  = ["network-programming", "asynchronous"]
+readme      = "README.md"
 
 [[bin]]
 name = "bot"
 path = "src/main.rs"
 
 [dependencies]
+# ── Telegram Bot API library ──────────────────────────────────────────────────
+# 285 types · 165 methods · auto-generated from official Telegram API spec
+#   Repository : https://github.com/ankit-chaubey/tgbotrs
+#   crates.io  : https://crates.io/crates/tgbotrs
+#   docs.rs    : https://docs.rs/tgbotrs
+#   API spec   : https://core.telegram.org/bots/api
 tgbotrs = { version = "0.1.4" }
-tokio   = { version = "1",    features = ["full"] }
+
+# ── Async runtime ─────────────────────────────────────────────────────────────
+tokio   = { version = "1", features = ["full"] }
+
+# ── Environment / config ──────────────────────────────────────────────────────
 dotenvy = "0.15"
-chrono  = { version = "0.4",  features = [] }
+
+# ── Date & time ───────────────────────────────────────────────────────────────
+chrono  = { version = "0.4", features = ["clock"] }
+
+# ── Randomness ────────────────────────────────────────────────────────────────
 rand    = "0.8"

@@ -1,42 +1,41 @@
-use tgbotrs::{Bot, Message};
-use tgbotrs::gen_methods::SendMessageParams;
+use tgbotrs::{Bot, Message, InlineKeyboardMarkup};
+use tgbotrs::gen_methods::{EditMessageTextParams, SendMessageParams};
 use crate::kb::{btn, url_btn, kb};
+
+// ─── /start ───────────────────────────────────────────────────────────────────
 
 pub async fn cmd_start(bot: &Bot, msg: &Message) {
     let name = msg.from.as_ref().map(|u| u.first_name.as_str()).unwrap_or("there");
-    let text = format!(
-        "👋 Hello, *{name}*\\!\n\n\
-        I'm a *multi\\-purpose bot* built with `tgbotrs v0.1.4` 🦀\n\n\
-        I can help with fun, utilities, group admin, games, notes, polls, and more\\!\n\n\
-        Use /help to see all commands\\."
-    );
     let _ = bot.send_message(
         msg.chat.id,
-        text,
+        format!(
+            "👋 Hello, <b>{name}</b>!\n\n\
+             I'm a <b>multi-purpose bot</b> powered by \
+             <a href=\"https://github.com/ankit-chaubey/tgbotrs\">tgbotrs v0.1.4</a> 🦀\n\n\
+             I can help with fun, utilities, group admin, games, notes, polls and more!\n\n\
+             📦 <a href=\"https://crates.io/crates/tgbotrs\">crates.io</a>  \
+             📖 <a href=\"https://docs.rs/tgbotrs\">docs.rs</a>  \
+             🔗 <a href=\"https://github.com/ankit-chaubey/tgbotrs\">GitHub</a>\n\n\
+             Use /help to see all commands."
+        ),
         Some(SendMessageParams::new()
-            .parse_mode("MarkdownV2")
+            .parse_mode("HTML")
             .reply_markup(kb(vec![
                 vec![btn("📋 Help", "help:main"), btn("ℹ️ About", "help:about")],
                 vec![
-                    url_btn("📦 tgbotrs", "https://github.com/ankit-chaubey/tgbotrs"),
-                    url_btn("👨‍💻 Dev", "https://t.me/ankify"),
+                    url_btn("📦 tgbotrs", "https://crates.io/crates/tgbotrs"),
+                    url_btn("💻 GitHub",  "https://github.com/ankit-chaubey/tgbotrs"),
                 ],
+                vec![url_btn("📖 docs.rs", "https://docs.rs/tgbotrs")],
             ]))
         ),
     ).await;
 }
 
+// ─── /help ────────────────────────────────────────────────────────────────────
+
 pub async fn cmd_help(bot: &Bot, msg: &Message, section: &str) {
-    let (title, body) = match section {
-        "fun"    => help_fun(),
-        "util"   => help_util(),
-        "admin"  => help_admin(),
-        "games"  => help_games(),
-        "notes"  => help_notes(),
-        "polls"  => help_polls(),
-        "info"   => help_info(),
-        _ => help_main(),
-    };
+    let (title, body) = help_content(section);
     let _ = bot.send_message(
         msg.chat.id,
         format!("{title}\n\n{body}"),
@@ -48,211 +47,243 @@ pub async fn cmd_help(bot: &Bot, msg: &Message, section: &str) {
 }
 
 pub async fn send_help_section(bot: &Bot, chat_id: i64, message_id: i64, section: &str) {
-    use tgbotrs::gen_methods::EditMessageTextParams;
-    let (title, body) = match section {
-        "fun"   => help_fun(),
-        "util"  => help_util(),
-        "admin" => help_admin(),
-        "games" => help_games(),
-        "notes" => help_notes(),
-        "polls" => help_polls(),
-        "info"  => help_info(),
-        _       => help_main(),
+    let (title, body) = help_content(section);
+    let kb_markup = match help_kb(section) {
+        tgbotrs::ReplyMarkup::InlineKeyboard(k) => k,
+        _ => InlineKeyboardMarkup { inline_keyboard: vec![] },
     };
     let params = EditMessageTextParams::new()
         .chat_id(chat_id)
         .message_id(message_id)
         .parse_mode("HTML")
-        .reply_markup(Box::new(match help_kb(section) {
-            tgbotrs::ReplyMarkup::InlineKeyboard(kb) => kb,
-            _ => unreachable!(),
-        }));
+        .reply_markup(Box::new(kb_markup));
     let _ = bot.edit_message_text(format!("{title}\n\n{body}"), Some(params)).await;
 }
 
 fn help_kb(section: &str) -> tgbotrs::ReplyMarkup {
-    let back = btn("⬅️ Back", "help:main");
+    let nav = vec![
+        vec![btn("🎉 Fun", "help:fun"),     btn("🔧 Utility", "help:util")],
+        vec![btn("👮 Admin", "help:admin"), btn("🎮 Games", "help:games")],
+        vec![btn("📝 Notes", "help:notes"), btn("📊 Polls", "help:polls")],
+        vec![btn("ℹ️ Info", "help:info")],
+    ];
     match section {
-        "main" => kb(vec![
-            vec![btn("🎉 Fun", "help:fun"),     btn("🔧 Utility", "help:util")],
-            vec![btn("👮 Admin", "help:admin"), btn("🎮 Games", "help:games")],
-            vec![btn("📝 Notes", "help:notes"), btn("📊 Polls", "help:polls")],
-            vec![btn("ℹ️ Info", "help:info")],
-        ]),
-        _ => kb(vec![
-            vec![btn("🎉 Fun", "help:fun"),     btn("🔧 Utility", "help:util")],
-            vec![btn("👮 Admin", "help:admin"), btn("🎮 Games", "help:games")],
-            vec![btn("📝 Notes", "help:notes"), btn("📊 Polls", "help:polls")],
-            vec![back],
-        ]),
+        "main" => kb(nav),
+        _ => {
+            let mut rows = nav;
+            rows.push(vec![btn("⬅️ Back", "help:main")]);
+            kb(rows)
+        }
     }
 }
 
-fn help_main() -> (&'static str, String) {
-    ("📚 <b>Command Categories</b>", "Pick a category below to see available commands.".into())
+fn help_content(section: &str) -> (&'static str, &'static str) {
+    match section {
+        "fun"   => ("🎉 <b>Fun Commands</b>",
+            "/dice — Animated Telegram dice 🎲\n\
+             /roll [N] — Roll N-sided die (default d6)\n\
+             /flip — Flip a coin 🪙\n\
+             /joke — Random programming joke 😂\n\
+             /quote — Inspiring developer quote 💭\n\
+             /fact — Random tech/programming fact 🤓\n\
+             /8ball &lt;question&gt; — Magic 8-ball 🎱\n\
+             /rps — Rock Paper Scissors (inline buttons)\n\
+             /choose &lt;a&gt; | &lt;b&gt; | &lt;c&gt; — Pick randomly from options\n\
+             /rate &lt;anything&gt; — Rate something out of 10\n\
+             /password [length] — Secure random password\n\
+             /mock &lt;text&gt; — aLtErNaTiNg CaSe\n\
+             /clap &lt;text&gt; — Add 👏 between words\n\
+             /shrug — ¯\\_(ツ)_/¯\n\
+             /tableflip — (╯°□°）╯︵ ┻━┻\n\
+             /unflip — ┬─┬ノ( º _ ºノ)"),
+
+        "util"  => ("🔧 <b>Utility Commands</b>",
+            "/echo &lt;text&gt; — Echo text\n\
+             /reverse &lt;text&gt; — Reverse text\n\
+             /upper &lt;text&gt; — UPPERCASE\n\
+             /lower &lt;text&gt; — lowercase\n\
+             /count &lt;text&gt; — Count chars/words/lines\n\
+             /calc &lt;expr&gt; — Calculator (+−×÷^ with sqrt/abs/floor/ceil/round)\n\
+             /b64 encode/decode &lt;text&gt; — Base64\n\
+             /repeat &lt;N&gt; &lt;text&gt; — Repeat N times (max 10)\n\
+             /ascii &lt;text&gt; — ASCII codes of characters\n\
+             /binary &lt;text&gt; — Text to binary\n\
+             /time — Current UTC time + unix timestamp\n\
+             /id — Your Telegram ID (reply to see another user's)"),
+
+        "admin" => ("👮 <b>Admin Commands</b> <i>(groups only, reply to a user)</i>",
+            "/ban — Permanently ban user\n\
+             /kick — Kick (ban + immediate unban)\n\
+             /mute — Remove all send permissions\n\
+             /unmute — Restore all send permissions\n\
+             /warn [reason] — Warn user (auto-bans at 3 warnings)\n\
+             /warns — Check user's warning count &amp; reasons\n\
+             /clearwarns — Clear all user's warnings\n\
+             /pin — Pin replied message\n\
+             /unpin — Unpin latest pinned message\n\
+             /del — Delete replied message\n\
+             /promote — Grant admin rights\n\
+             /demote — Remove admin rights\n\
+             /members — Show member count\n\
+             /invite — Generate new invite link"),
+
+        "games" => ("🎮 <b>Game Commands</b>",
+            "/guess — Start a number guessing game (1–100, 7 attempts)\n\
+             /guess &lt;number&gt; — Make a guess\n\
+             /giveup — Reveal the number and end the game"),
+
+        "notes" => ("📝 <b>Notes Commands</b>",
+            "/save &lt;name&gt; &lt;content&gt; — Save a note\n\
+             /get &lt;name&gt; — Retrieve a note\n\
+             /notes — List all notes in this chat\n\
+             /delnote &lt;name&gt; — Delete a note"),
+
+        "polls" => ("📊 <b>Poll Commands</b>",
+            "/poll &lt;question&gt; | &lt;opt1&gt; | &lt;opt2&gt; ... — Create a poll\n\
+             /quiz &lt;question&gt; | &lt;correct&gt; | &lt;wrong1&gt; ... — Create a quiz\n\
+             <i>Separate everything with</i> <code>|</code>"),
+
+        "info" | "about" => ("ℹ️ <b>Info Commands</b>",
+            "/start — Welcome screen with links\n\
+             /help — Interactive help menu\n\
+             /about — About this bot &amp; library\n\
+             /ping — Check bot response time\n\
+             /id — Your user/chat ID\n\
+             /userinfo — User info (reply to see another's)\n\
+             /chatinfo — Current chat info\n\
+             /members — Member count\n\
+             /source — Library source links"),
+
+        _ => ("📚 <b>Command Categories</b>",
+            "Pick a category below to browse commands."),
+    }
 }
 
-fn help_fun() -> (&'static str, String) {
-    ("🎉 <b>Fun Commands</b>", "\
-/dice — Roll a Telegram dice 🎲
-/roll [N] — Roll a N-sided die (default: d6)
-/flip — Flip a coin 🪙
-/joke — Get a random joke 😂
-/quote — Get an inspiring quote 💭
-/fact — Get a random tech fact 🤓
-/8ball &lt;question&gt; — Ask the magic 8-ball 🎱
-/rps — Play Rock Paper Scissors ✊✌️🖐".into())
-}
-
-fn help_util() -> (&'static str, String) {
-    ("🔧 <b>Utility Commands</b>", "\
-/echo &lt;text&gt; — Echo text back
-/reverse &lt;text&gt; — Reverse text
-/upper &lt;text&gt; — UPPERCASE text
-/lower &lt;text&gt; — lowercase text
-/count &lt;text&gt; — Count chars/words/lines
-/calc &lt;expr&gt; — Calculator (supports +−×÷^ and parentheses)
-/b64 encode/decode &lt;text&gt; — Base64 encode/decode
-/repeat &lt;N&gt; &lt;text&gt; — Repeat text N times (max 10)
-/time — Current UTC time
-/id — Show your Telegram ID".into())
-}
-
-fn help_admin() -> (&'static str, String) {
-    ("👮 <b>Admin Commands</b> <i>(group only)</i>", "\
-Reply to a user's message, then:
-/ban — Permanently ban user
-/kick — Kick (remove but can rejoin)
-/mute — Mute user (remove send rights)
-/unmute — Restore user's send rights
-/warn [reason] — Warn a user
-/warns — Check user's warnings
-/clearwarns — Clear all user's warnings
-/pin — Pin replied message
-/unpin — Unpin latest pinned message
-/del — Delete replied message
-/promote — Promote user to admin
-/demote — Remove admin rights
-/members — Show member count".into())
-}
-
-fn help_games() -> (&'static str, String) {
-    ("🎮 <b>Game Commands</b>", "\
-/guess — Start a number guessing game (1–100)
-/guess &lt;number&gt; — Make a guess
-/giveup — Give up current game".into())
-}
-
-fn help_notes() -> (&'static str, String) {
-    ("📝 <b>Notes Commands</b>", "\
-/save &lt;name&gt; &lt;content&gt; — Save a note
-/get &lt;name&gt; — Retrieve a note
-/notes — List all notes in this chat
-/delnote &lt;name&gt; — Delete a note".into())
-}
-
-fn help_polls() -> (&'static str, String) {
-    ("📊 <b>Poll Commands</b>", "\
-/poll &lt;question&gt; | &lt;opt1&gt; | &lt;opt2&gt; ... — Create a poll
-/quiz &lt;question&gt; | &lt;correct answer&gt; | &lt;wrong1&gt; | &lt;wrong2&gt; ... — Create a quiz
-<i>Separate question and options with</i> <code>|</code>".into())
-}
-
-fn help_info() -> (&'static str, String) {
-    ("ℹ️ <b>Info Commands</b>", "\
-/start — Welcome message
-/help — This help menu
-/about — About this bot
-/ping — Check bot latency
-/id — Your Telegram ID (reply to see another user's)
-/userinfo — Info about you (reply to see another user's)
-/chatinfo — Info about this chat".into())
-}
+// ─── /about ───────────────────────────────────────────────────────────────────
 
 pub async fn cmd_about(bot: &Bot, msg: &Message) {
     let _ = bot.send_message(
         msg.chat.id,
-        "🤖 <b>Multi-Purpose Bot</b>\n\n\
-        Built with <code>tgbotrs v0.1.4</code> — a fully auto-generated \
-        Rust Telegram Bot API library covering all 285 types and 165 methods.\n\n\
-        📦 <a href=\"https://crates.io/crates/tgbotrs\">crates.io/crates/tgbotrs</a>\n\
-        🔗 <a href=\"https://github.com/ankit-chaubey/tgbotrs\">GitHub</a>\n\
-        👨‍💻 Dev: <a href=\"https://t.me/ankify\">@ankify</a>\n\n\
-        <i>Features: fun, utilities, admin tools, games, notes, polls and more!</i>",
-        Some(SendMessageParams::new().parse_mode("HTML")),
+        "🤖 <b>Multi-Purpose Bot v0.2.0</b>\n\n\
+         Built with <code>tgbotrs v0.1.4</code> — a fully auto-generated \
+         Rust Telegram Bot API library.\n\n\
+         <b>Library details:</b>\n\
+         • 285 types · 165 methods\n\
+         • Auto-generated from the official Telegram Bot API spec\n\
+         • Zero unsafe code · Full async/await\n\
+         • MIT licensed\n\n\
+         <b>Links:</b>\n\
+         📦 <a href=\"https://crates.io/crates/tgbotrs\">crates.io/crates/tgbotrs</a>\n\
+         💻 <a href=\"https://github.com/ankit-chaubey/tgbotrs\">github.com/ankit-chaubey/tgbotrs</a>\n\
+         📖 <a href=\"https://docs.rs/tgbotrs\">docs.rs/tgbotrs</a>\n\
+         🌐 <a href=\"https://core.telegram.org/bots/api\">Telegram Bot API</a>",
+        Some(SendMessageParams::new()
+            .parse_mode("HTML")
+            .reply_markup(kb(vec![vec![
+                url_btn("📦 crates.io", "https://crates.io/crates/tgbotrs"),
+                url_btn("💻 GitHub",    "https://github.com/ankit-chaubey/tgbotrs"),
+                url_btn("📖 docs.rs",   "https://docs.rs/tgbotrs"),
+            ]]))
+        ),
     ).await;
 }
 
+// ─── /source ─────────────────────────────────────────────────────────────────
+
+pub async fn cmd_source(bot: &Bot, msg: &Message) {
+    let _ = bot.send_message(
+        msg.chat.id,
+        "🔗 <b>Library Source Links</b>\n\n\
+         <b>tgbotrs</b> — Rust Telegram Bot API\n\
+         📦 <a href=\"https://crates.io/crates/tgbotrs\">crates.io/crates/tgbotrs</a>\n\
+         💻 <a href=\"https://github.com/ankit-chaubey/tgbotrs\">github.com/ankit-chaubey/tgbotrs</a>\n\
+         📖 <a href=\"https://docs.rs/tgbotrs\">docs.rs/tgbotrs</a>\n\
+         🌐 <a href=\"https://core.telegram.org/bots/api\">Telegram Bot API spec</a>\n\n\
+         <code>tgbotrs = { version = \"0.1.4\" }</code>",
+        Some(SendMessageParams::new()
+            .parse_mode("HTML")
+            .reply_markup(kb(vec![vec![
+                url_btn("📦 crates.io", "https://crates.io/crates/tgbotrs"),
+                url_btn("💻 GitHub",    "https://github.com/ankit-chaubey/tgbotrs"),
+            ]]))
+        ),
+    ).await;
+}
+
+// ─── /ping ────────────────────────────────────────────────────────────────────
+
 pub async fn cmd_ping(bot: &Bot, msg: &Message) {
     let start = std::time::Instant::now();
-    let sent = bot.send_message(msg.chat.id, "🏓 Pinging...", None).await;
-    let elapsed = start.elapsed().as_millis();
+    let sent  = bot.send_message(msg.chat.id, "🏓 Pinging...", None).await;
+    let ms    = start.elapsed().as_millis();
     if let Ok(sent_msg) = sent {
-        use tgbotrs::gen_methods::EditMessageTextParams;
         let params = EditMessageTextParams::new()
             .chat_id(msg.chat.id)
-            .message_id(sent_msg.message_id);
-        let _ = bot.edit_message_text(
-            format!("🏓 Pong! `{elapsed}ms`"),
-            Some(params.parse_mode("Markdown")),
-        ).await;
+            .message_id(sent_msg.message_id)
+            .parse_mode("Markdown");
+        let _ = bot.edit_message_text(format!("🏓 Pong! `{ms}ms`"), Some(params)).await;
     }
 }
 
+// ─── /userinfo ────────────────────────────────────────────────────────────────
+
 pub async fn cmd_userinfo(bot: &Bot, msg: &Message) {
     let target = msg.reply_to_message.as_deref().unwrap_or(msg);
-    let user = match target.from.as_deref() {
+    let user   = match target.from.as_deref() {
         Some(u) => u,
         None => {
             let _ = bot.send_message(msg.chat.id, "❌ Could not find user info.", None).await;
             return;
         }
     };
-    let name = format!("{}{}", user.first_name,
+    let name     = format!("{}{}", user.first_name,
         user.last_name.as_deref().map(|l| format!(" {l}")).unwrap_or_default());
     let username = user.username.as_deref()
         .map(|u| format!("@{u}"))
-        .unwrap_or_else(|| "none".to_string());
-    let is_bot = if user.is_bot { "✅ Yes" } else { "❌ No" };
-    let premium = user.is_premium.map(|p| if p { "✅ Yes" } else { "❌ No" }).unwrap_or("❌ No");
+        .unwrap_or_else(|| "none".into());
+    let is_bot   = if user.is_bot { "✅ Yes" } else { "❌ No" };
+    let premium  = user.is_premium
+        .map(|p| if p { "✅ Yes" } else { "❌ No" })
+        .unwrap_or("❌ No");
     let _ = bot.send_message(
         msg.chat.id,
         format!(
             "👤 <b>User Info</b>\n\n\
-            🔹 <b>Name:</b> {name}\n\
-            🔹 <b>Username:</b> {username}\n\
-            🔹 <b>User ID:</b> <code>{}</code>\n\
-            🔹 <b>Is Bot:</b> {is_bot}\n\
-            🔹 <b>Premium:</b> {premium}",
+             🔹 <b>Name:</b> {name}\n\
+             🔹 <b>Username:</b> {username}\n\
+             🔹 <b>User ID:</b> <code>{}</code>\n\
+             🔹 <b>Bot:</b> {is_bot}\n\
+             🔹 <b>Premium:</b> {premium}",
             user.id
         ),
         Some(SendMessageParams::new().parse_mode("HTML")),
     ).await;
 }
 
+// ─── /chatinfo ────────────────────────────────────────────────────────────────
+
 pub async fn cmd_chatinfo(bot: &Bot, msg: &Message) {
-    let chat = &msg.chat;
+    let chat  = &msg.chat;
     let title = chat.title.as_deref()
         .or(chat.first_name.as_deref())
         .unwrap_or("Unknown");
     let username = chat.username.as_deref()
         .map(|u| format!("@{u}"))
-        .unwrap_or_else(|| "none".to_string());
-    let is_forum = chat.is_forum.unwrap_or(false);
-    // Get member count
+        .unwrap_or_else(|| "none".into());
     let members = bot.get_chat_member_count(chat.id).await
         .map(|n| n.to_string())
-        .unwrap_or_else(|_| "N/A".to_string());
+        .unwrap_or_else(|_| "N/A".into());
+    let is_forum = chat.is_forum.unwrap_or(false);
     let _ = bot.send_message(
         msg.chat.id,
         format!(
             "💬 <b>Chat Info</b>\n\n\
-            🔹 <b>Title:</b> {title}\n\
-            🔹 <b>Username:</b> {username}\n\
-            🔹 <b>Chat ID:</b> <code>{}</code>\n\
-            🔹 <b>Type:</b> {}\n\
-            🔹 <b>Forum:</b> {}\n\
-            🔹 <b>Members:</b> {members}",
+             🔹 <b>Title:</b> {title}\n\
+             🔹 <b>Username:</b> {username}\n\
+             🔹 <b>Chat ID:</b> <code>{}</code>\n\
+             🔹 <b>Type:</b> {}\n\
+             🔹 <b>Forum:</b> {}\n\
+             🔹 <b>Members:</b> {members}",
             chat.id, chat.r#type,
             if is_forum { "✅ Yes" } else { "❌ No" }
         ),
@@ -260,17 +291,19 @@ pub async fn cmd_chatinfo(bot: &Bot, msg: &Message) {
     ).await;
 }
 
+// ─── /members ────────────────────────────────────────────────────────────────
+
 pub async fn cmd_members(bot: &Bot, msg: &Message) {
     match bot.get_chat_member_count(msg.chat.id).await {
-        Ok(count) => {
+        Ok(n)  => {
             let _ = bot.send_message(
                 msg.chat.id,
-                format!("👥 This chat has *{count}* members.", ),
+                format!("👥 This chat has *{n}* members."),
                 Some(SendMessageParams::new().parse_mode("Markdown")),
             ).await;
         }
-        Err(_) => {
-            let _ = bot.send_message(msg.chat.id, "❌ Could not get member count.", None).await;
+        Err(e) => {
+            let _ = bot.send_message(msg.chat.id, format!("❌ Could not get member count: {e}"), None).await;
         }
     }
 }
